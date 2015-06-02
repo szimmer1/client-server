@@ -51,7 +51,6 @@ void reply_get (accepted_socket& client_sock, cix_header& header) {
 		header.nbytes = errno;
 		send_packet (client_sock, &header, sizeof header);
 	}
-
 }
 
 void run_server (accepted_socket& client_sock) {
