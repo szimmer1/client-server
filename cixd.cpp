@@ -8,6 +8,7 @@ using namespace std;
 
 #include <libgen.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "protocol.h"
@@ -51,6 +52,19 @@ void reply_get (accepted_socket& client_sock, cix_header& header) {
 		header.nbytes = errno;
 		send_packet (client_sock, &header, sizeof header);
 	}
+	struct stat stat_buff;
+	stat (header.filename, &stat_buff);
+	char buffer[stat_buff.st_size];
+	if (!get_file.read(buffer,stat_buff.st_size)) {
+		cerr << "reply_get: file read error" << endl;
+		throw cix_exit();
+	}
+	header.command = CIX_FILE;
+	header.nbytes = stat_buff.st_size;
+	log << "sending header " << header << endl;
+	send_packet (client_sock, &header, sizeof header);
+	send_packet (client_sock, buffer, sizeof buffer);
+	log << "sent " << sizeof buffer << " bytes" << endl;
 }
 
 void run_server (accepted_socket& client_sock) {
