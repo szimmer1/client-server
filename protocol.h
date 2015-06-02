@@ -43,6 +43,12 @@ struct cix_header {
    char filename[FILENAME_SIZE] {};
 };
 
+struct buff_info {
+	buff_info (char* b, size_t s) : buffer(b), size(s) {};
+	char* buffer;
+	size_t size;
+};
+
 void send_packet (base_socket& socket,
                   const void* buffer, size_t bufsize);
 

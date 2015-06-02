@@ -25,7 +25,7 @@ unordered_map<string,cix_command> command_map {
    {"get" , CIX_GET }
 };
 
-void call_server_with (client_socket& server, cix_command which, const string& filename) {
+buff_info call_server_with (client_socket& server, cix_command which, const string& filename) {
    auto found_cmd_itor = cix_command_map.find(int(which));
    auto _recip_cmd_itor = cix_recip_cmds.find(int(which));
    unordered_map<int,string>::const_iterator recip_cmd_itor;
@@ -55,8 +55,8 @@ void call_server_with (client_socket& server, cix_command which, const string& f
       char buffer[header.nbytes + 1];
       recv_packet (server, buffer, header.nbytes);
       log << "received " << header.nbytes << " bytes" << endl;
-      buffer[header.nbytes] = '\0';
       cout << buffer;
+      return buff_info(buffer, header.nbytes);
    }
 }
 
@@ -73,11 +73,16 @@ void cix_help() {
 }
 
 void cix_ls (client_socket& server) {
-	call_server_with (server, CIX_LS, "");
+	buff_info bi = call_server_with (server, CIX_LS, "");
+      	bi.buffer[bi.size] = '\0';
+	cout << bi.buffer;
 }
 
 void cix_get (client_socket& server, const string& file) {
-	call_server_with (server, CIX_GET, file);
+	buff_info bi = call_server_with (server, CIX_GET, file);
+	bi.buffer[bi.size] = '\0';
+	cout << bi.buffer;
+
 }
 
 void usage () {
