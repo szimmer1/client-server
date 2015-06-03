@@ -33,6 +33,7 @@ void reply_ls (accepted_socket& client_sock, cix_header& header) {
       if (rc == nullptr) break;
       ls_output.append (buffer);
    }
+   pclose(ls_pipe);
    header.command = CIX_LSOUT;
    header.nbytes = ls_output.size();
    memset (header.filename, 0, FILENAME_SIZE);
@@ -91,7 +92,7 @@ void run_server (accepted_socket& client_sock) {
          }
       }
    }catch (socket_error& error) {
-      log << error.what() << endl;
+      log << "run_server: " << error.what() << endl;
    }catch (cix_exit& error) {
       log << "caught cix_exit" << endl;
    }
