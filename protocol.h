@@ -44,9 +44,10 @@ struct cix_header {
 };
 
 struct buff_info {
-	buff_info (char* b, size_t s) : buffer(b), size(s) {};
+	buff_info (char* b, size_t s, cix_header* h) : buffer(b), size(s), header(h) {};
 	char* buffer;
 	size_t size;
+	cix_header* header;
 };
 
 void send_packet (base_socket& socket,

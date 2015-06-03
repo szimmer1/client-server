@@ -1,6 +1,7 @@
 // $Id: cix.cpp,v 1.2 2015-05-12 18:59:40-07 - - $
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -25,7 +26,7 @@ unordered_map<string,cix_command> command_map {
    {"get" , CIX_GET }
 };
 
-buff_info call_server_with (client_socket& server, cix_command which, const string& filename) {
+void call_server_with (client_socket& server, cix_command which, const string& filename) {
    auto found_cmd_itor = cix_command_map.find(int(which));
    auto _recip_cmd_itor = cix_recip_cmds.find(int(which));
    unordered_map<int,string>::const_iterator recip_cmd_itor;
@@ -38,7 +39,6 @@ buff_info call_server_with (client_socket& server, cix_command which, const stri
 	   log << "cal_server_with: unknown reciprocal cix_command" << endl;
 	   throw cix_exit();
    }
-   cout << "1" << endl;
    recip_cmd_itor = cix_command_map.find(int(_recip_cmd_itor->second));
    cix_header header;
    header.command = which;
@@ -55,8 +55,27 @@ buff_info call_server_with (client_socket& server, cix_command which, const stri
       char buffer[header.nbytes + 1];
       recv_packet (server, buffer, header.nbytes);
       log << "received " << header.nbytes << " bytes" << endl;
-      cout << buffer;
-      return buff_info(buffer, header.nbytes);
+      buffer[header.nbytes] = '\0';
+      switch (header.command) {
+	      case CIX_LSOUT:
+		{
+			cout << buffer;
+			break;
+		}
+	      case CIX_FILE:
+		{
+			log << "Opening file for write: header: " << header << endl;
+			ofstream get_file(header.filename);
+			if (!get_file.is_open()) {
+				log << "cix_get: error opening file for write" << endl;
+				break;
+			}
+			log << "Writing to " << header.filename << endl;
+			get_file.write(buffer, header.nbytes);
+			get_file.close();
+			break;
+		}
+      }
    }
 }
 
@@ -73,16 +92,11 @@ void cix_help() {
 }
 
 void cix_ls (client_socket& server) {
-	buff_info bi = call_server_with (server, CIX_LS, "");
-      	bi.buffer[bi.size] = '\0';
-	cout << bi.buffer;
+	call_server_with (server, CIX_LS, "");
 }
 
 void cix_get (client_socket& server, const string& file) {
-	buff_info bi = call_server_with (server, CIX_GET, file);
-	bi.buffer[bi.size] = '\0';
-	cout << bi.buffer;
-
+	call_server_with (server, CIX_GET,file);
 }
 
 void usage () {
