@@ -10,6 +10,7 @@ using namespace std;
 #include <libgen.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "util.h"
 #include "protocol.h"
@@ -23,7 +24,8 @@ unordered_map<string,cix_command> command_map {
    {"exit", CIX_EXIT},
    {"help", CIX_HELP},
    {"ls"  , CIX_LS  },
-   {"get" , CIX_GET }
+   {"get" , CIX_GET },
+   {"put" , CIX_PUT }
 };
 
 void call_server_with (client_socket& server, cix_command which, const string& filename) {
@@ -72,7 +74,13 @@ void call_server_with (client_socket& server, cix_command which, const string& f
 			}
 			log << "Writing to " << header.filename << endl;
 			get_file.write(buffer, header.nbytes);
+			log << "Write succeeded" << endl;
 			get_file.close();
+			break;
+		}
+	      case CIX_ACK:
+		{
+			log << "Request successfully completed" << endl;
 			break;
 		}
       }
@@ -97,6 +105,39 @@ void cix_ls (client_socket& server) {
 
 void cix_get (client_socket& server, const string& file) {
 	call_server_with (server, CIX_GET,file);
+}
+
+void cix_put (client_socket& server, const string& file) {
+	struct stat stat_info;
+	stat (file.c_str(), &stat_info);
+
+	cix_header header;
+	header.command = CIX_PUT;
+	file.copy(header.filename, file.size());
+	header.nbytes = stat_info.st_size;
+	send_packet (server, &header, sizeof header);
+
+	log << "put : Opening file " << file << " for write" << endl;
+	ifstream put_file(file);
+	if (!put_file.is_open()) {
+		cerr << "put : error opening file " << file << endl;
+		return;
+	}
+	log << "sending " << header << endl;
+	char buffer[stat_info.st_size];
+	if (!put_file.read(buffer, stat_info.st_size)) {
+		cerr << "put : error reading file " << file << endl;
+		cix_exit();
+	}
+	log << "sending file " << file << endl;
+	send_packet (server, buffer, sizeof buffer);
+	recv_packet (server, &header, sizeof header);
+	log << "recieved " << header << endl;
+	if (header.command != CIX_ACK) {
+		log << "server sent " << header << endl;
+		log << "put failed" << endl;
+		return;
+	}
 }
 
 void usage () {
@@ -146,6 +187,18 @@ int main (int argc, char** argv) {
 	       	  }
 	       	  cix_get (server, file);
 	       	  break;
+	       }
+	    case CIX_PUT:
+	       {
+		       string file;
+		       try {
+			       file = words.at(1);
+		       } catch (exception e) {
+			       cerr << "put : no filename given" << endl;
+			       break;
+		       }
+		       cix_put (server, file);
+		       break;
 	       }
             default:
                log << line << ": invalid command" << endl;

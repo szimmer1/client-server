@@ -68,6 +68,23 @@ void reply_get (accepted_socket& client_sock, cix_header& header) {
 	log << "sent " << sizeof buffer << " bytes" << endl;
 }
 
+void reply_put (accepted_socket& client, cix_header& header) {
+	log << "reply_put: opening file " << header.filename << " for write" << endl;
+	ofstream put_file(header.filename);
+	if (!put_file.is_open()) {
+		log << "reply_put: error opening file " << header.filename << endl;
+		cix_exit();
+	}
+	char buffer[header.nbytes + 1];
+	recv_packet (client, buffer, header.nbytes);
+	buffer[header.nbytes] = '\0';
+	log << "Writing to file " << header.filename << endl;
+	put_file.write(buffer, header.nbytes);
+	log << "Write might have succeeded :/" << endl;
+	header.command = CIX_ACK;
+	put_file.close();
+}
+
 void run_server (accepted_socket& client_sock) {
    log.execname (log.execname() + "-server");
    log << "connected to " << to_string (client_sock) << endl;
@@ -82,6 +99,9 @@ void run_server (accepted_socket& client_sock) {
                break;
 	    case CIX_GET:
 	       reply_get (client_sock, header);
+	       break;
+	    case CIX_PUT:
+	       reply_put (client_sock, header);
 	       break;
             default:
                log << "invalid header from client" << endl;
