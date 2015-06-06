@@ -25,7 +25,8 @@ unordered_map<string,cix_command> command_map {
    {"help", CIX_HELP},
    {"ls"  , CIX_LS  },
    {"get" , CIX_GET },
-   {"put" , CIX_PUT }
+   {"put" , CIX_PUT },
+   {"rm"  , CIX_RM  }
 };
 
 void call_server_with (client_socket& server, cix_command which, const string& filename) {
@@ -110,20 +111,18 @@ void cix_get (client_socket& server, const string& file) {
 void cix_put (client_socket& server, const string& file) {
 	struct stat stat_info;
 	stat (file.c_str(), &stat_info);
-
 	cix_header header;
 	header.command = CIX_PUT;
 	file.copy(header.filename, file.size());
 	header.nbytes = stat_info.st_size;
+	log << "sending " << header << endl;
 	send_packet (server, &header, sizeof header);
-
 	log << "put : Opening file " << file << " for write" << endl;
 	ifstream put_file(file);
 	if (!put_file.is_open()) {
 		cerr << "put : error opening file " << file << endl;
 		return;
 	}
-	log << "sending " << header << endl;
 	char buffer[stat_info.st_size];
 	if (!put_file.read(buffer, stat_info.st_size)) {
 		cerr << "put : error reading file " << file << endl;
@@ -138,6 +137,22 @@ void cix_put (client_socket& server, const string& file) {
 		log << "put failed" << endl;
 		return;
 	}
+}
+
+void cix_rm (client_socket& server, const string& file) {
+	cix_header header;
+	header.command = CIX_RM;
+	log << "sending " << header << endl;
+	send_packet (server, &header, sizeof header);
+	recv_packet (server, &header, sizeof header);
+	log << "received " << header << endl;
+	if (header.command != CIX_ACK) {
+		log << "server sent " << header << endl;
+		log << "rm failed " << endl;
+		return;
+	}
+	log << "server sent " << header << endl;
+	log << "rm success" << endl;
 }
 
 void usage () {
@@ -199,6 +214,18 @@ int main (int argc, char** argv) {
 		       }
 		       cix_put (server, file);
 		       break;
+	       }
+	    case CIX_RM:
+	       {
+	       string file;
+	       try {
+		       file = words.at(1);
+	       } catch (exception e) {
+		       cerr << "get : no filename given" << endl;
+		       break;
+	       }
+	       cix_rm (server, file);
+	       break;
 	       }
             default:
                log << line << ": invalid command" << endl;
