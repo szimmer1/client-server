@@ -80,9 +80,20 @@ void reply_put (accepted_socket& client, cix_header& header) {
 	buffer[header.nbytes] = '\0';
 	log << "Writing to file " << header.filename << endl;
 	put_file.write(buffer, header.nbytes);
-	log << "Write might have succeeded :/" << endl;
-	header.command = CIX_ACK;
 	put_file.close();
+	header.command = CIX_ACK;
+	log << "sending packet " << header  << endl;
+	send_packet (client, &header, header.nbytes);
+}
+
+void reply_rm (accepted_socket& client_sock, cix_header& header) {
+	if (unlink(header.filename) == -1) {
+		log << "Error deleting " << header.filename << endl;
+		throw cix_exit();
+	}
+	header.command = CIX_ACK;
+	log << "sending packet " << header  << endl;
+	send_packet (client_sock, &header, header.nbytes);
 }
 
 void run_server (accepted_socket& client_sock) {
@@ -93,6 +104,7 @@ void run_server (accepted_socket& client_sock) {
          cix_header header; 
          recv_packet (client_sock, &header, sizeof header);
          log << "received header " << header << endl;
+	 log << "received header command " << int(header.command) << endl;
          switch (header.command) {
             case CIX_LS: 
                reply_ls (client_sock, header);
@@ -102,6 +114,9 @@ void run_server (accepted_socket& client_sock) {
 	       break;
 	    case CIX_PUT:
 	       reply_put (client_sock, header);
+	       break;
+	    case CIX_RM:
+	       reply_rm (client_sock, header);
 	       break;
             default:
                log << "invalid header from client" << endl;
